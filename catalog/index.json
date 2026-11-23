@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-23T13:59:12Z",
+ "updated": "2026-11-23T14:04:34Z",
  "channels": [
   {
    "id": "ert",
@@ -7,15 +7,15 @@
    "file": "ert.json",
    "lang": "gr",
    "shows": 656,
-   "updated": "2026-11-23T13:57:19Z"
+   "updated": "2026-11-23T14:01:40Z"
   },
   {
    "id": "ru_youtube",
    "name": "Ρωσικές σειρές",
    "file": "ru_youtube.json",
    "lang": "ru",
-   "shows": 155,
-   "updated": "2026-11-23T13:59:12Z"
+   "shows": 233,
+   "updated": "2026-11-23T14:04:34Z"
   }
  ]
 }
