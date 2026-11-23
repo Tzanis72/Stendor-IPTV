@@ -1,12 +1,21 @@
 {
- "updated": "2026-11-23T09:53:49Z",
+ "updated": "2026-11-23T13:54:20Z",
  "channels": [
   {
    "id": "ert",
    "name": "Αρχείο ΕΡΤ",
    "file": "ert.json",
+   "lang": "gr",
    "shows": 656,
-   "updated": "2026-11-23T09:53:49Z"
+   "updated": "2026-11-23T13:52:19Z"
+  },
+  {
+   "id": "ru_youtube",
+   "name": "Ρωσικές σειρές",
+   "file": "ru_youtube.json",
+   "lang": "ru",
+   "shows": 155,
+   "updated": "2026-11-23T13:54:20Z"
   }
  ]
 }
