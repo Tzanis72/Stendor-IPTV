@@ -1,0 +1,12 @@
+{
+ "updated": "2026-11-23T09:53:49Z",
+ "channels": [
+  {
+   "id": "ert",
+   "name": "Αρχείο ΕΡΤ",
+   "file": "ert.json",
+   "shows": 656,
+   "updated": "2026-11-23T09:53:49Z"
+  }
+ ]
+}
