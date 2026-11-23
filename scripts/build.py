@@ -251,17 +251,98 @@ def build_ert():
             "genres": sorted({s["g"] for s in shows if s["g"]}), "shows": shows}
 
 
+# ============================== ΡΩΣΙΚΕΣ ΣΕΙΡΕΣ (YouTube) ==============================
+# Επίσημα κανάλια YouTube ρωσικών στούντιο, που ανεβάζουν νόμιμα και δωρεάν ολόκληρες σειρές.
+# Η λίστα των καναλιών είναι στο youtube_ru.txt (μία γραμμή: Όνομα | https://www.youtube.com/@handle).
+# Κάθε playlist του καναλιού = μία σειρά, κάθε βίντεο = ένα επεισόδιο.
+
+YT_LIST = "youtube_ru.txt"
+YT_MAX_PLAYLISTS = 80      # ανά κανάλι
+YT_MIN_EPISODES = 2        # playlist με 1 βίντεο = ταινία/τρέιλερ, δεν είναι σειρά
+
+
+def _ytdlp():
+    try:
+        import yt_dlp  # noqa: F401
+    except ImportError:
+        import importlib
+        import site
+        import subprocess
+        pip = [sys.executable, "-m", "pip", "install", "--quiet", "yt-dlp"]
+        if subprocess.run(pip).returncode != 0:
+            subprocess.run(pip + ["--user"], check=True)
+            sys.path.append(site.getusersitepackages())
+        importlib.invalidate_caches()
+    import yt_dlp
+    return yt_dlp
+
+
+def yt_channels():
+    path = os.path.join(ROOT, YT_LIST)
+    out = []
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "|" not in line:
+                    continue
+                name, url = [x.strip() for x in line.split("|", 1)]
+                out.append((name, url.rstrip("/")))
+    return out
+
+
+def build_youtube_ru():
+    yt_dlp = _ytdlp()
+    opts = {"extract_flat": "in_playlist", "quiet": True, "no_warnings": True,
+            "ignoreerrors": True, "skip_download": True}
+    shows = []
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        for name, url in yt_channels():
+            try:
+                info = ydl.extract_info(url + "/playlists", download=False) or {}
+                lists = [e for e in (info.get("entries") or []) if e and e.get("id")][:YT_MAX_PLAYLISTS]
+                print(f"  {name}: {len(lists)} playlists")
+            except Exception as e:  # noqa: BLE001
+                print(f"  ! {name}: {e}")
+                continue
+            n = 0
+            for pl in lists:
+                try:
+                    pinfo = ydl.extract_info(f"https://www.youtube.com/playlist?list={pl['id']}", download=False) or {}
+                except Exception as e:  # noqa: BLE001
+                    print(f"    ! {pl.get('title')}: {e}")
+                    continue
+                eps = [v for v in (pinfo.get("entries") or [])
+                       if v and v.get("id") and (v.get("title") or "") not in ("[Private video]", "[Deleted video]")]
+                if len(eps) < YT_MIN_EPISODES:
+                    continue
+                shows.append({
+                    "t": clean(pinfo.get("title") or pl.get("title") or "?"),
+                    "g": name,
+                    "d": "",
+                    "e": [{"l": clean(v.get("title") or f"Серия {i + 1}"),
+                           "u": f"https://m.youtube.com/watch?v={v['id']}"} for i, v in enumerate(eps)],
+                })
+                n += 1
+            print(f"  ✓ {name}: {n} σειρές")
+    shows.sort(key=lambda s: s["t"].lower())
+    return {"id": "ru_youtube", "name": "Ρωσικές σειρές", "lang": "ru", "updated": now(),
+            "genres": sorted({s["g"] for s in shows}), "shows": shows}
+
+
 # ============================== ΣΕΙΡΕΣ ==============================
 
-# Κάθε κανάλι: (id, όνομα, συνάρτηση). Νέα κανάλια προστίθενται εδώ.
+# Κάθε κανάλι: (id, όνομα, συνάρτηση, γλώσσα). Νέα κανάλια προστίθενται εδώ.
+# Γλώσσα "gr" = εμφανίζεται και στις δύο εφαρμογές, "ru" = μόνο στην IPTV GR-RU.
 CHANNELS = [
-    ("ert", "Αρχείο ΕΡΤ", build_ert),
+    ("ert", "Αρχείο ΕΡΤ", build_ert, "gr"),
+    ("ru_youtube", "Ρωσικές σειρές", build_youtube_ru, "ru"),
 ]
 
 
 def build_series():
     os.makedirs(CATALOG, exist_ok=True)
-    for cid, name, fn in CHANNELS:
+    for cid, name, fn, _lang in CHANNELS:
         print(f"→ {name}")
         try:
             data = fn()
@@ -271,12 +352,12 @@ def build_series():
 
     # index.json: ό,τι αρχεία καναλιών υπάρχουν (και παλιά που δεν ανανεώθηκαν)
     index = []
-    for cid, name, _ in CHANNELS:
+    for cid, name, _, lang in CHANNELS:
         path = os.path.join(CATALOG, f"{cid}.json")
         if os.path.exists(path):
             with open(path, encoding="utf-8") as f:
                 d = json.load(f)
-            index.append({"id": cid, "name": name, "file": f"{cid}.json",
+            index.append({"id": cid, "name": name, "file": f"{cid}.json", "lang": lang,
                           "shows": len(d.get("shows", [])), "updated": d.get("updated", "")})
     with open(os.path.join(CATALOG, "index.json"), "w", encoding="utf-8") as f:
         json.dump({"updated": now(), "channels": index}, f, ensure_ascii=False, indent=1)
