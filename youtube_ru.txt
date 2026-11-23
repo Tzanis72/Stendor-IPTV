@@ -1,0 +1,7 @@
+# Επίσημα κανάλια YouTube με ρωσικές σειρές (νόμιμα, δωρεάν).
+# Μορφή: Όνομα | https://www.youtube.com/@handle
+# Για να προσθέσεις κανάλι, βάλε μια νέα γραμμή. Το GitHub θα το πάρει στην επόμενη ανανέωση.
+Мосфильм | https://www.youtube.com/@mosfilm
+Союзмультфильм | https://www.youtube.com/@soyuzmultfilm
+Star Media | https://www.youtube.com/@StarMediaRu
+Киностудия Горького | https://www.youtube.com/@gorkyfilmstudio
