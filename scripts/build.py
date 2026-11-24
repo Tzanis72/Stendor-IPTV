@@ -251,6 +251,285 @@ def build_ert():
             "genres": sorted({s["g"] for s in shows if s["g"]}), "shows": shows}
 
 
+# ============================== ΙΔΙΩΤΙΚΑ ΚΑΝΑΛΙΑ (ΣΚΑΪ, Mega, ANT1) ==============================
+# Παίρνουμε μόνο τη λίστα εκπομπών/επεισοδίων από τις επίσημες σελίδες τους.
+# Η διεύθυνση του βίντεο βρίσκεται από την εφαρμογή τη στιγμή που πατάς το επεισόδιο
+# (skai:/mega:/ant1: μπροστά από το link), γιατί τα βίντεο παίζουν μόνο από Ελλάδα/Κύπρο.
+
+BUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
+
+
+def bget(url, tries=2):
+    err = None
+    for i in range(tries):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": BUA, "Accept-Language": "el-GR,el;q=0.9"})
+            with urllib.request.urlopen(req, timeout=40) as r:
+                return r.read().decode("utf-8", "replace")
+        except Exception as e:  # noqa: BLE001
+            err = e
+            time.sleep(2 * (i + 1))
+    raise err
+
+
+def pmap(fn, items, workers=8):
+    """Τρέχει παράλληλα· ό,τι αποτύχει επιστρέφει None."""
+    def safe(x):
+        try:
+            return fn(x)
+        except Exception as e:  # noqa: BLE001
+            print(f"    ! {x}: {e}")
+            return None
+    with cf.ThreadPoolExecutor(workers) as ex:
+        return list(ex.map(safe, items))
+
+
+_epn = re.compile(r"(?:επεισ[οό]διο|episode|epeisodio)\D{0,3}0*(\d+)", re.I)
+
+
+def ep_number(text):
+    m = _epn.search(text or "")
+    return int(m.group(1)) if m else None
+
+
+def finish(cid, name, shows):
+    shows = [s for s in shows if s and s["e"]]
+    seen, out = set(), []
+    for s in shows:
+        k = s["t"].lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(s)
+    out.sort(key=lambda s: s["t"].lower())
+    return {"id": cid, "name": name, "updated": now(),
+            "genres": sorted({s["g"] for s in out if s["g"]}), "shows": out}
+
+
+# ---------- ΣΚΑΪ ----------
+SKAI = "https://www.skai.gr"
+SKAI_CATS = [("seires", "Σειρές"), ("ntokimanter", "Ντοκιμαντέρ"), ("psuchagogia", "Ψυχαγωγία")]
+
+
+def js_blocks(t):
+    out, pos, dec = [], 0, json.JSONDecoder()
+    while True:
+        i = t.find("var data = ", pos)
+        if i < 0:
+            return out
+        try:
+            obj, end = dec.raw_decode(t, i + 11)
+            out.append(obj)
+            pos = end
+        except Exception:  # noqa: BLE001
+            pos = i + 11
+
+
+def skai_season(arg):
+    path, genre = arg
+    t = bget(SKAI + path)
+    parts = path.strip("/").split("/")          # tv/show/<cat>/<slug>/<season>
+    others = {p.rstrip("/") for p in re.findall(r'href="(/tv/show/%s/%s/[^"#?/]+)/?"' % (parts[2], re.escape(parts[3])), t)}
+    blocks = [b for b in js_blocks(t) if isinstance(b, dict) and b.get("show")]
+    if not blocks:
+        return None, others
+    d = blocks[0]
+    show = d["show"]
+    eps = d.get("episodes") or []
+    if not eps:
+        return None, others
+    full = eps
+    first = eps[0].get("link")
+    if first:
+        try:
+            for b in js_blocks(bget(SKAI + "/tv" + first)):
+                if isinstance(b, dict) and isinstance(b.get("episodes"), list) and len(b["episodes"]) > len(full):
+                    full = b["episodes"]
+        except Exception:  # noqa: BLE001
+            pass
+    title = clean(show.get("title") or "")
+    sub = clean(show.get("subtitle") or "")
+    items, seen = [], set()
+    for e in full:
+        link = e.get("link")
+        if not link or link in seen:
+            continue
+        seen.add(link)
+        lab = clean(re.sub(r"<[^>]+>", "", e.get("title") or ""))
+        bits = [x.strip() for x in lab.split("|") if x.strip()]
+        if len(bits) > 1 and bits[0].lower() == title.lower():
+            lab = " | ".join(bits[1:])
+        num = e.get("episode_number")
+        num = int(num) if str(num).isdigit() else ep_number(lab)
+        items.append((num, e.get("start") or "", lab or title, "skai:" + SKAI + "/tv" + link))
+    items.sort(key=lambda x: (x[0] is None, x[0] or 0, x[1]))
+    return ({"t": f"{title} · {sub}" if sub else title, "g": genre,
+             "d": max((x[1] for x in items), default="")[:10],
+             "e": [{"l": x[2], "u": x[3]} for x in items]}, others)
+
+
+def build_skai():
+    todo = {}
+    for cat, genre in SKAI_CATS:
+        t = bget(f"{SKAI}/tv/shows/{cat}")
+        for p in re.findall(r'href="(/tv/show/%s/[^"#?]+)"' % cat, t):
+            todo.setdefault(p.rstrip("/"), genre)
+    done, shows = set(), []
+    for _ in range(3):                         # και τις παλαιότερες σεζόν των ίδιων εκπομπών
+        wave = [(p, g) for p, g in todo.items() if p not in done][:300]
+        if not wave:
+            break
+        done.update(p for p, _ in wave)
+        for (path, genre), res in zip(wave, pmap(skai_season, wave)):
+            if not res:
+                continue
+            show, others = res
+            shows.append(show)
+            for o in others:
+                todo.setdefault(o, genre)
+    print(f"  ΣΚΑΪ: {len(done)} σεζόν")
+    return finish("skai", "ΣΚΑΪ", shows)
+
+
+# ---------- MEGA ----------
+MEGA = "https://www.megatv.com"
+MEGA_LISTS = [("/showtype/ntokimanter/", "Ντοκιμαντέρ"), ("/showtype/paidika/", "Παιδικά"),
+              ("/showtype/entertainment/", "Ψυχαγωγία"), ("/showtype/flashback/", "Flashback"),
+              ("/showtype/greekseries/", "Σειρές"), ("/tag/current-season/", "Σειρές"),
+              ("/tag/archive/?stID=10", "Σειρές"), ("/tag/megaclassics/", "Σειρές")]
+MEGA_SKIP = ("mega-zhn",)
+
+
+def mega_show(arg):
+    url, genre = arg
+    t = bget(url)
+    m = re.search(r"<title>(.*?)</title>", t, re.S)
+    title = clean(re.sub(r"\s*\|\s*MEGA TV\s*$", "", m.group(1))) if m else url
+    items, seen = [], set()
+    for sid, typ in dict.fromkeys(re.findall(r"episodes/?\?id=([A-Za-z0-9]+)&(?:amp;)?type=([a-z]+)", t)):
+        e = bget(f"{MEGA}/episodes/?id={sid}&type={typ}")
+        for href, lab in re.findall(r'<a href="(https://www\.megatv\.com/[a-z]+/\d+/[^"]+)" class="card__link">([^<]*)</a>', e):
+            if href in seen:
+                continue
+            seen.add(href)
+            lab = clean(lab).rstrip(" -–")
+            items.append((ep_number(lab), lab or title, "mega:" + href))
+    items.reverse()                              # η σελίδα έχει πρώτα τα νεότερα
+    items.sort(key=lambda x: (x[0] is None, x[0] or 0))
+    return {"t": title, "g": genre, "d": "", "e": [{"l": x[1], "u": x[2]} for x in items]}
+
+
+def build_mega():
+    shows = {}
+    for path, genre in MEGA_LISTS:
+        try:
+            t = bget(MEGA + path)
+        except Exception as e:  # noqa: BLE001
+            print(f"    ! {path}: {e}")
+            continue
+        for u in re.findall(r'href="(https://www\.megatv\.com/ekpompes/\d+/([^"/]+)/?)"', t):
+            if u[1] not in MEGA_SKIP:
+                shows.setdefault(u[0].rstrip("/") + "/", genre)
+    print(f"  Mega: {len(shows)} εκπομπές")
+    return finish("mega", "Mega", pmap(mega_show, list(shows.items())))
+
+
+# ---------- ANT1 ----------
+ANT = "https://www.antenna.gr"
+_ant_skip = re.compile(r"sneak|preview|trailer|promo|teaser", re.I)
+
+
+def ant_label(slug):
+    n = ep_number(slug.replace("-", " "))
+    season = re.search(r"(?:sezon-0*(\d+)|0*(\d+)(?:os|i)-(?:kyklos|sezon))", slug)
+    if n is not None:
+        lab = f"Επεισόδιο {n}"
+        if season:
+            lab = f"Σεζόν {season.group(1) or season.group(2)} · " + lab
+        return lab
+    return slug.replace("-", " ").strip().capitalize()
+
+
+def ant_show(slug):
+    t = bget(f"{ANT}/{slug}/videos")
+    m = re.search(r"<title>\s*ANT1 TV\s*/\s*(.*?)\s*/\s*Videos", t, re.S)
+    title = clean(m.group(1)) if m else slug
+    links = re.findall(r'href="/watch/([a-z0-9]+)/([^"]+)"', t)
+    sid = re.search(r"currentShowId\s*=\s*'([^']+)'", t)
+    if sid:
+        try:
+            links += re.findall(r'href="/watch/([a-z0-9]+)/([^"]+)"', bget(f"{ANT}/templates/data/morevideos.aspx?showid={sid.group(1)}"))
+        except Exception:  # noqa: BLE001
+            pass
+    items, seen = [], set()
+    for cid, s in links:
+        if cid in seen or _ant_skip.search(s):
+            continue
+        seen.add(cid)
+        items.append((ep_number(s.replace("-", " ")), ant_label(s), "ant1:" + cid))
+    items.reverse()
+    items.sort(key=lambda x: (x[0] is None, x[0] or 0))
+    return {"t": title.title() if title.isupper() else title, "g": "Εκπομπές",
+            "d": "", "e": [{"l": x[1], "u": x[2]} for x in items]}
+
+
+def build_ant1():
+    watch = set()
+    for path in ("/", "/webtv"):
+        try:
+            watch.update(re.findall(r'href="(/watch/[a-z0-9]+/[^"]+)"', bget(ANT + path)))
+        except Exception as e:  # noqa: BLE001
+            print(f"    ! {path}: {e}")
+    slugs = set()
+    for t in pmap(lambda w: bget(ANT + w), sorted(watch)[:150]):
+        for sl in re.findall(r'href="/([a-z0-9\-]+)/videos"', t or ""):
+            if sl not in ("lifestyle-showbiz",):
+                slugs.add(sl)
+    print(f"  ANT1: {len(slugs)} εκπομπές")
+    return finish("ant1", "ANT1", pmap(ant_show, sorted(slugs)))
+
+
+# ============================== ΡΑΔΙΟΦΩΝΟ ==============================
+# Ελληνικοί σταθμοί που εκπέμπουν στο internet (radio-browser.info, ανοιχτή βάση).
+RADIO_FILE = os.path.join(CATALOG, "radio.m3u")
+RADIO_API = ["https://de1.api.radio-browser.info", "https://de2.api.radio-browser.info",
+             "https://fi1.api.radio-browser.info", "https://all.api.radio-browser.info"]
+
+
+def build_radio():
+    data = None
+    for base in RADIO_API:
+        try:
+            data = json.loads(get(f"{base}/json/stations/bycountrycodeexact/GR?hidebroken=true"
+                                  f"&order=clickcount&reverse=true&limit=400", "application/json")[0])
+            break
+        except Exception as e:  # noqa: BLE001
+            print(f"  ! ραδιόφωνο {base}: {e}")
+    if not data:
+        print("  ! ραδιόφωνο: κρατάω την παλιά λίστα")
+        return
+    seen, lines = set(), ["#EXTM3U"]
+    for st in data:
+        name = clean(st.get("name") or "")
+        url = (st.get("url_resolved") or st.get("url") or "").strip()
+        key = re.sub(r"[^a-z0-9α-ω]", "", name.lower())
+        if not name or not url or key in seen:
+            continue
+        seen.add(key)
+        logo = (st.get("favicon") or "").replace('"', "")
+        lines.append(f'#EXTINF:-1 tvg-logo="{logo}" group-title="Ραδιόφωνο",{name}')
+        lines.append(url)
+        if len(seen) >= 200:
+            break
+    if len(seen) < 20:
+        print(f"  ! ραδιόφωνο: μόνο {len(seen)} σταθμοί - κρατάω την παλιά λίστα")
+        return
+    os.makedirs(CATALOG, exist_ok=True)
+    with open(RADIO_FILE, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+    print(f"  ✓ radio.m3u: {len(seen)} σταθμοί")
+
+
 # ============================== ΡΩΣΙΚΕΣ ΣΕΙΡΕΣ (YouTube) ==============================
 # Επίσημα κανάλια YouTube ρωσικών στούντιο, που ανεβάζουν νόμιμα και δωρεάν ολόκληρες σειρές.
 # Η λίστα των καναλιών είναι στο youtube_ru.txt (μία γραμμή: Όνομα | https://www.youtube.com/@handle).
@@ -336,12 +615,19 @@ def build_youtube_ru():
 # Γλώσσα "gr" = εμφανίζεται και στις δύο εφαρμογές, "ru" = μόνο στην IPTV GR-RU.
 CHANNELS = [
     ("ert", "Αρχείο ΕΡΤ", build_ert, "gr"),
+    ("skai", "ΣΚΑΪ", build_skai, "gr"),
+    ("mega", "Mega", build_mega, "gr"),
+    ("ant1", "ANT1", build_ant1, "gr"),
     ("ru_youtube", "Ρωσικές σειρές", build_youtube_ru, "ru"),
 ]
 
 
 def build_series():
     os.makedirs(CATALOG, exist_ok=True)
+    try:
+        build_radio()
+    except Exception as e:  # noqa: BLE001
+        print(f"  ! ραδιόφωνο: {e}")
     for cid, name, fn, _lang in CHANNELS:
         print(f"→ {name}")
         try:
