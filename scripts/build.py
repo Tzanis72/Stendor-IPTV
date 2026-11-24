@@ -551,6 +551,8 @@ def build_radio():
     seen, cands = set(), []
     for st in data:
         name = clean(st.get("name") or "")
+        # Το κόμμα χαλάει το όνομα στο M3U: «95,1» -> «95.1», αλλιώς «, » -> « - »
+        name = re.sub(r"(\d),(\d)", r"\1.\2", name).replace(",", " -").strip(" -")
         url = (st.get("url_resolved") or st.get("url") or "").strip()
         key = re.sub(r"[^a-z0-9α-ω]", "", name.lower())
         if not name or not url or key in seen:
