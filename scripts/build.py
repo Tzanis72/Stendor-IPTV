@@ -15,6 +15,7 @@ import os
 import re
 import sys
 import time
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
@@ -496,19 +497,58 @@ RADIO_API = ["https://de1.api.radio-browser.info", "https://de2.api.radio-browse
              "https://fi1.api.radio-browser.info", "https://all.api.radio-browser.info"]
 
 
+AUDIO_TYPES = ("audio/", "application/ogg", "video/mp2t", "application/octet-stream", "video/mp4")
+
+
+def _open(url, timeout=12):
+    req = urllib.request.Request(url, headers={"User-Agent": BUA, "Icy-MetaData": "0"})
+    return urllib.request.urlopen(req, timeout=timeout)
+
+
+def check_stream(url, depth=0):
+    """Δοκιμάζει έναν σταθμό. Επιστρέφει το URL που παίζει (ίσως το πραγματικό stream
+    μέσα από .pls/.m3u) ή None αν δεν στέλνει ήχο."""
+    if depth > 2:
+        return None
+    with _open(url) as r:
+        ctype = (r.headers.get("Content-Type") or "").lower()
+        first = r.read(4096)
+        if ctype.startswith(AUDIO_TYPES) or first[:3] == b"ID3" or first[:2] in (b"\xff\xfb", b"\xff\xf3", b"\xff\xf2") or first[:4] == b"OggS":
+            more = first + r.read(12288)          # πρέπει να ρέει ήχος, όχι μια σελίδα σφάλματος
+            if len(more) >= 8192 and not more.lstrip()[:15].lower().startswith((b"<!doctype", b"<html")):
+                return url
+            return None
+        text = first.decode("utf-8", "replace")
+    final = r.geturl()
+    if "#EXTM3U" in text and "#EXT-X-" in text:     # HLS: δοκιμάζω και το πρώτο κομμάτι
+        sub = [l.strip() for l in text.splitlines() if l.strip() and not l.startswith("#")]
+        if not sub:
+            return None
+        nxt = urllib.parse.urljoin(final, sub[0])
+        if "#EXT-X-STREAM-INF" in text:
+            return url if check_stream(nxt, depth + 1) else None
+        with _open(nxt) as r2:
+            return url if len(r2.read(2048)) >= 1024 else None
+    # .pls / απλό .m3u: παίρνω το πρώτο πραγματικό stream
+    m = re.search(r"(?im)^(?:File\d+=)?\s*(https?://\S+)", text)
+    if m and ("[playlist]" in text.lower() or "mpegurl" in ctype or "scpls" in ctype or text.lstrip().startswith("#EXTM3U")):
+        return check_stream(m.group(1).strip(), depth + 1)
+    return None
+
+
 def build_radio():
     data = None
     for base in RADIO_API:
         try:
             data = json.loads(get(f"{base}/json/stations/bycountrycodeexact/GR?hidebroken=true"
-                                  f"&order=clickcount&reverse=true&limit=400", "application/json")[0])
+                                  f"&order=clickcount&reverse=true&limit=500", "application/json")[0])
             break
         except Exception as e:  # noqa: BLE001
             print(f"  ! ραδιόφωνο {base}: {e}")
     if not data:
         print("  ! ραδιόφωνο: κρατάω την παλιά λίστα")
         return
-    seen, lines = set(), ["#EXTM3U"]
+    seen, cands = set(), []
     for st in data:
         name = clean(st.get("name") or "")
         url = (st.get("url_resolved") or st.get("url") or "").strip()
@@ -516,18 +556,41 @@ def build_radio():
         if not name or not url or key in seen:
             continue
         seen.add(key)
-        logo = (st.get("favicon") or "").replace('"', "")
+        cands.append((name, url, (st.get("favicon") or "").replace('"', "")))
+
+    # Έλεγχος ένας-ένας (παράλληλα): μένουν μόνο όσοι στέλνουν πραγματικά ήχο
+    def test(c):
+        for i in range(2):
+            try:
+                ok = check_stream(c[1])
+                if ok:
+                    return ok
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(2)
+        return None
+    with cf.ThreadPoolExecutor(32) as ex:
+        res = list(ex.map(test, cands))
+    lines, kept, dead = ["#EXTM3U"], 0, []
+    for (name, _, logo), ok in zip(cands, res):
+        if not ok:
+            dead.append(name)
+            continue
         lines.append(f'#EXTINF:-1 tvg-logo="{logo}" group-title="Ραδιόφωνο",{name}')
-        lines.append(url)
-        if len(seen) >= 200:
+        lines.append(ok)
+        kept += 1
+        if kept >= 200:
             break
-    if len(seen) < 20:
-        print(f"  ! ραδιόφωνο: μόνο {len(seen)} σταθμοί - κρατάω την παλιά λίστα")
+    print(f"  ραδιόφωνο: {len(cands)} δοκιμάστηκαν, {kept} παίζουν, {len(dead)} δεν δουλεύουν")
+    if dead:
+        print("    εκτός: " + ", ".join(dead[:80]))
+    if kept < 20:
+        print(f"  ! ραδιόφωνο: μόνο {kept} σταθμοί - κρατάω την παλιά λίστα")
         return
     os.makedirs(CATALOG, exist_ok=True)
     with open(RADIO_FILE, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
-    print(f"  ✓ radio.m3u: {len(seen)} σταθμοί")
+    print(f"  ✓ radio.m3u: {kept} σταθμοί", flush=True)
 
 
 # ============================== ΡΩΣΙΚΕΣ ΣΕΙΡΕΣ (YouTube) ==============================
