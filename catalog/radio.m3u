@@ -55,11 +55,11 @@ https://netradio.live24.gr/athinaradio
 http://netradio.live24.gr/realfm
 #EXTINF:-1 tvg-logo="http://athina984.gr/favicon.ico" group-title="Ραδιόφωνο",Athina 984
 http://athina984.live24.gr/athina984
-#EXTINF:-1 tvg-logo="https://www.imagine897.gr/images/IMAGINE897.jpg" group-title="Ραδιόφωνο",Imagine 897 Thessaloniki,gr
+#EXTINF:-1 tvg-logo="https://www.imagine897.gr/images/IMAGINE897.jpg" group-title="Ραδιόφωνο",Imagine 897 Thessaloniki -gr
 https://imagine897.radioca.st/stream
 #EXTINF:-1 tvg-logo="https://resources.live24.gr/resources/images/stations/2d0a60fe-a504-4f8f-9770-253d47e923a8.jpg" group-title="Ραδιόφωνο",ΣΚΑΪ 100.3
 https://skai.live24.gr/skai1003
-#EXTINF:-1 tvg-logo="https://www.radioart.com/favicon.ico" group-title="Ραδιόφωνο",Radio Art - Relaxing (Violin, Piano & Cello)
+#EXTINF:-1 tvg-logo="https://www.radioart.com/favicon.ico" group-title="Ραδιόφωνο",Radio Art - Relaxing (Violin - Piano & Cello)
 http://air.radioart.com/fRelaxing.mp3
 #EXTINF:-1 tvg-logo="http://evdomimera.gr/favicon.ico" group-title="Ραδιόφωνο",Seven News 94.4
 https://i5.streams.ovh:14030/live
@@ -81,9 +81,9 @@ https://stream.radiojar.com/cthtwxk5yvduv.mp3
 http://netradio.live24.gr/rebel1052
 #EXTINF:-1 tvg-logo="https://static.wixstatic.com/media/7f073d_18cffe2308b44af8836433bfe6f16f2a.png/v1/crop/x_0,y_7,w_483,h_442/fill/w_102,h_109,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/7f073d_18cffe2308b44af8836433bfe6f16f2a.png" group-title="Ραδιόφωνο",Trance Athena Radio
 http://cast.streams.ovh:8008/stream
-#EXTINF:-1 tvg-logo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQfG0ysBMrdjgVftkVZ_ITk5GU65pUDbD48O1xP5MSoQg&s=10" group-title="Ραδιόφωνο",6.Sport fm 94,6
+#EXTINF:-1 tvg-logo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQfG0ysBMrdjgVftkVZ_ITk5GU65pUDbD48O1xP5MSoQg&s=10" group-title="Ραδιόφωνο",6.Sport fm 94.6
 http://sportfm.live24.gr/sportfm7712?344b685e2518b0370f0d731432f51438
-#EXTINF:-1 tvg-logo="https://bluespaceradio.com/wp-content/uploads/2022/03/LOGO.fw_.png" group-title="Ραδιόφωνο",Blue Space 107,2 FM Athens
+#EXTINF:-1 tvg-logo="https://bluespaceradio.com/wp-content/uploads/2022/03/LOGO.fw_.png" group-title="Ραδιόφωνο",Blue Space 107.2 FM Athens
 https://sp1.19cloudsnetwork.gr/8008/stream?1701442520261
 #EXTINF:-1 tvg-logo="" group-title="Ραδιόφωνο",Easy 97.2
 http://stream.radiojar.com/cthtwxk5yvduv
@@ -95,7 +95,7 @@ http://stream.radiojar.com/kokkino-ath.mp3
 http://ath10400fm-radioplayer.live24.gr/ath10400fm
 #EXTINF:-1 tvg-logo="https://newageradio.gr/Greek_New_Age_1200x1200.png" group-title="Ραδιόφωνο",1st Greek New Age FLAC Radio (FLAC stream)
 https://stream.newageradio.gr/listen/hq/radio.flac
-#EXTINF:-1 tvg-logo="https://www.dromosfm.gr/wp-content/uploads/2016/09/favicon.ico" group-title="Ραδιόφωνο",ΔΡΟΜΟΣ 89,8
+#EXTINF:-1 tvg-logo="https://www.dromosfm.gr/wp-content/uploads/2016/09/favicon.ico" group-title="Ραδιόφωνο",ΔΡΟΜΟΣ 89.8
 https://n07-eu1.rcs.revma.com/10q3enqxbfhvv
 #EXTINF:-1 tvg-logo="https://www.ertecho.gr/wp-content/uploads/2022/06/cropped-ertecho-favicon-192x192.png" group-title="Ραδιόφωνο",ΕΡΑσπορ
 https://radiostreaming.ert.gr/ert-erasport
