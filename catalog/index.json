@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-24T14:22:22Z",
+ "updated": "2026-11-24T15:10:01Z",
  "channels": [
   {
    "id": "ert",
@@ -7,7 +7,31 @@
    "file": "ert.json",
    "lang": "gr",
    "shows": 656,
-   "updated": "2026-11-24T14:18:59Z"
+   "updated": "2026-11-24T15:06:20Z"
+  },
+  {
+   "id": "skai",
+   "name": "ΣΚΑΪ",
+   "file": "skai.json",
+   "lang": "gr",
+   "shows": 65,
+   "updated": "2026-11-24T15:06:40Z"
+  },
+  {
+   "id": "mega",
+   "name": "Mega",
+   "file": "mega.json",
+   "lang": "gr",
+   "shows": 143,
+   "updated": "2026-11-24T15:07:18Z"
+  },
+  {
+   "id": "ant1",
+   "name": "ANT1",
+   "file": "ant1.json",
+   "lang": "gr",
+   "shows": 12,
+   "updated": "2026-11-24T15:07:36Z"
   },
   {
    "id": "ru_youtube",
@@ -15,7 +39,7 @@
    "file": "ru_youtube.json",
    "lang": "ru",
    "shows": 233,
-   "updated": "2026-11-24T14:22:22Z"
+   "updated": "2026-11-24T15:10:01Z"
   }
  ]
 }
