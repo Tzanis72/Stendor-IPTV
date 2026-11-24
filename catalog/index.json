@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-23T14:04:34Z",
+ "updated": "2026-11-24T14:22:22Z",
  "channels": [
   {
    "id": "ert",
@@ -7,7 +7,7 @@
    "file": "ert.json",
    "lang": "gr",
    "shows": 656,
-   "updated": "2026-11-23T14:01:40Z"
+   "updated": "2026-11-24T14:18:59Z"
   },
   {
    "id": "ru_youtube",
@@ -15,7 +15,7 @@
    "file": "ru_youtube.json",
    "lang": "ru",
    "shows": 233,
-   "updated": "2026-11-23T14:04:34Z"
+   "updated": "2026-11-24T14:22:22Z"
   }
  ]
 }
